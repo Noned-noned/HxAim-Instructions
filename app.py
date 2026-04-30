@@ -94,7 +94,7 @@ def calc_dynamic_param(distance, p_min, p_max, p_factor, max_dist, reverse):
 st.sidebar.title("🎛️ HxAim 无限制控制台")
 
 with st.sidebar.expander("🖥️ 硬件与系统环境", expanded=True):
-    target_fps = st.select_slider("游戏帧率 (FPS)", options=[30, 60, 90, 120, 144, 240, 360, 500, 1000], value=60)
+    target_fps = st.select_slider("游戏帧率 (FPS)", options=[30, 60, 90, 120, 144, 240, 360, 500, 1000], value=240)
     sens_multiplier = st.number_input("DPI/游戏内灵敏度倍率", min_value=0.01, value=1.0, step=0.1)
 
 with st.sidebar.expander("🟢 布尔类型开关 (Boolean)", expanded=False):
