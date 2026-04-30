@@ -9,7 +9,7 @@ import time
 st.set_page_config(page_title="HxAim 终极动画模拟器", layout="wide")
 
 # ==========================================
-# 0. 直接加载本地中文字体 (无需下载)
+# 0. 直接加载本地中文字体
 # ==========================================
 @st.cache_resource
 def load_font():
@@ -89,13 +89,13 @@ def calc_dynamic_param(distance, p_min, p_max, p_factor, max_dist, reverse):
     return max(p_min, min(p_max, val))
 
 # ==========================================
-# 2. UI 面板
+# 2. UI 面板 (彻底解除上限)
 # ==========================================
-st.sidebar.title("🎛️ HxAim 参数台")
+st.sidebar.title("🎛️ HxAim 无限制控制台")
 
 with st.sidebar.expander("🖥️ 硬件与系统环境", expanded=True):
-    target_fps = st.select_slider("游戏帧率 (FPS)", options=[30, 60, 90, 120, 144, 240, 360], value=60)
-    sens_multiplier = st.slider("DPI/游戏内灵敏度倍率", 0.1, 5.0, 1.0, step=0.1)
+    target_fps = st.select_slider("游戏帧率 (FPS)", options=[30, 60, 90, 120, 144, 240, 360, 500, 1000], value=60)
+    sens_multiplier = st.number_input("DPI/游戏内灵敏度倍率", min_value=0.01, value=1.0, step=0.1)
 
 with st.sidebar.expander("🟢 布尔类型开关 (Boolean)", expanded=False):
     c1, c2 = st.columns(2)
@@ -113,58 +113,58 @@ with st.sidebar.expander("🟢 布尔类型开关 (Boolean)", expanded=False):
 with st.sidebar.expander("🔵 小数类型参数 (Double)", expanded=False):
     st.markdown("**🎯 PID 参数矩阵**")
     pc1, pc2 = st.columns(2)
-    KPX_MIN = pc1.number_input("KPX_MIN (X阻尼-小)", 0.0, 1.0, 0.05, 0.01)
-    KPX_MAX = pc1.number_input("KPX_MAX (X阻尼-大)", 0.0, 1.0, 0.15, 0.01)
-    KIX_MIN = pc1.number_input("KIX_MIN (X动力-小)", 0.0, 0.1, 0.005, 0.001)
-    KIX_MAX = pc1.number_input("KIX_MAX (X动力-大)", 0.0, 0.1, 0.020, 0.001)
-    KDX_MIN = pc1.number_input("KDX_MIN", 0.0, 0.5, 0.0, 0.01)
-    KDX_MAX = pc1.number_input("KDX_MAX", 0.0, 0.5, 0.0, 0.01)
+    KPX_MIN = pc1.number_input("KPX_MIN (X阻尼-小)", min_value=0.0, value=0.05, step=0.01)
+    KPX_MAX = pc1.number_input("KPX_MAX (X阻尼-大)", min_value=0.0, value=0.15, step=0.01)
+    KIX_MIN = pc1.number_input("KIX_MIN (X动力-小)", min_value=0.0, value=0.005, step=0.001)
+    KIX_MAX = pc1.number_input("KIX_MAX (X动力-大)", min_value=0.0, value=0.020, step=0.001)
+    KDX_MIN = pc1.number_input("KDX_MIN", min_value=0.0, value=0.0, step=0.01)
+    KDX_MAX = pc1.number_input("KDX_MAX", min_value=0.0, value=0.0, step=0.01)
     
-    KPY_MIN = pc2.number_input("KPY_MIN (Y阻尼-小)", 0.0, 1.0, 0.05, 0.01)
-    KPY_MAX = pc2.number_input("KPY_MAX (Y阻尼-大)", 0.0, 1.0, 0.15, 0.01)
-    KIY_MIN = pc2.number_input("KIY_MIN (Y动力-小)", 0.0, 0.1, 0.005, 0.001)
-    KIY_MAX = pc2.number_input("KIY_MAX (Y动力-大)", 0.0, 0.1, 0.020, 0.001)
-    KDY_MIN = pc2.number_input("KDY_MIN", 0.0, 0.5, 0.0, 0.01)
-    KDY_MAX = pc2.number_input("KDY_MAX", 0.0, 0.5, 0.0, 0.01)
+    KPY_MIN = pc2.number_input("KPY_MIN (Y阻尼-小)", min_value=0.0, value=0.05, step=0.01)
+    KPY_MAX = pc2.number_input("KPY_MAX (Y阻尼-大)", min_value=0.0, value=0.15, step=0.01)
+    KIY_MIN = pc2.number_input("KIY_MIN (Y动力-小)", min_value=0.0, value=0.005, step=0.001)
+    KIY_MAX = pc2.number_input("KIY_MAX (Y动力-大)", min_value=0.0, value=0.020, step=0.001)
+    KDY_MIN = pc2.number_input("KDY_MIN", min_value=0.0, value=0.0, step=0.01)
+    KDY_MAX = pc2.number_input("KDY_MAX", min_value=0.0, value=0.0, step=0.01)
     
     st.markdown("---")
-    IXMAX = st.slider("IXMAX (最大输出X)", 0.0, 100.0, 50.0)
-    IYMAX = st.slider("IYMAX (最大输出Y)", 0.0, 100.0, 50.0)
+    IXMAX = st.number_input("IXMAX (最大输出X)", min_value=0.0, value=50.0)
+    IYMAX = st.number_input("IYMAX (最大输出Y)", min_value=0.0, value=50.0)
     c1, c2 = st.columns(2)
-    P_FACTOR = c1.number_input("P_FACTOR_X", 0.1, 5.0, 1.0)
-    P_FACTOR_Y = c2.number_input("P_FACTOR_Y", 0.1, 5.0, 1.0)
-    DEADBAND = c1.number_input("死区X (像素)", 0.0, 20.0, 2.0)
-    DEADBAND_Y = c2.number_input("死区Y (像素)", 0.0, 20.0, 2.0)
-    PREDICT_TIME_MS = c1.number_input("预测时间X (ms)", 0.0, 100.0, 20.0)
-    PREDICT_TIME_MS_Y = c2.number_input("预测时间Y (ms)", 0.0, 100.0, 10.0)
+    P_FACTOR = c1.number_input("P_FACTOR_X", min_value=0.01, value=1.0)
+    P_FACTOR_Y = c2.number_input("P_FACTOR_Y", min_value=0.01, value=1.0)
+    DEADBAND = c1.number_input("死区X (像素)", min_value=0.0, value=2.0)
+    DEADBAND_Y = c2.number_input("死区Y (像素)", min_value=0.0, value=2.0)
+    PREDICT_TIME_MS = c1.number_input("预测时间X (ms)", min_value=0.0, value=20.0)
+    PREDICT_TIME_MS_Y = c2.number_input("预测时间Y (ms)", min_value=0.0, value=10.0)
     
     st.markdown("**🧬 拟人化与噪声**")
-    FINAL_RANGE = st.slider("最终直线范围", 0.0, 100.0, 25.0)
-    MAX_CURVE_PIXELS = st.slider("最大曲线偏移", 0.0, 20.0, 6.0)
-    CURVE_FREQUENCY = st.number_input("曲线抖动频率", 0.0001, 0.05, 0.003, format="%.4f")
+    FINAL_RANGE = st.number_input("最终直线范围", min_value=0.0, value=25.0)
+    MAX_CURVE_PIXELS = st.number_input("最大曲线偏移", min_value=0.0, value=6.0)
+    CURVE_FREQUENCY = st.number_input("曲线抖动频率", min_value=0.0, value=0.003, format="%.4f")
     KF_Q_POS_X = st.number_input("KF_Q_POS_X", value=0.001, format="%.4f")
     KF_Q_VEL_X = st.number_input("KF_Q_VEL_X", value=8.0)
-    CAMERA_SENS = st.slider("镜头补偿 Sens", 0.1, 5.0, 1.0)
+    CAMERA_SENS = st.number_input("镜头补偿 Sens", min_value=0.01, value=1.0, step=0.1)
 
 with st.sidebar.expander("🟠 整数类型参数 (Integer)", expanded=False):
-    TARGET_RANGE = st.slider("瞄准范围", 10, 500, 200)
-    X_OFFSET = st.number_input("X偏移", -100, 100, 0)
-    TRIGGER_PERCENT = st.slider("触发比例 (%)", 1, 100, 30)
-    PREDICT_ENABLE_DISTANCE_X = st.slider("预判启动距X", 0, 500, 150)
-    PREDICT_ENABLE_DISTANCE_Y = st.slider("预判启动距Y", 0, 500, 100)
-    PREDICT_MAX_OFFSET_X = st.slider("最大预判偏移X", 0, 100, 40)
-    PREDICT_MAX_OFFSET_Y = st.slider("最大预判偏移Y", 0, 100, 20)
-    AIM_DELAY = st.number_input("瞄准延迟 (ms)", 0, 500, 0)
-    TRIGGER_PRESS_DELAY = st.number_input("扳机延迟 (ms)", 0, 500, 0)
+    TARGET_RANGE = st.number_input("瞄准范围", min_value=1, value=200)
+    X_OFFSET = st.number_input("X偏移", value=0)
+    TRIGGER_PERCENT = st.number_input("触发比例 (%)", min_value=1, value=30)
+    PREDICT_ENABLE_DISTANCE_X = st.number_input("预判启动距X", min_value=0, value=150)
+    PREDICT_ENABLE_DISTANCE_Y = st.number_input("预判启动距Y", min_value=0, value=100)
+    PREDICT_MAX_OFFSET_X = st.number_input("最大预判偏移X", min_value=0, value=40)
+    PREDICT_MAX_OFFSET_Y = st.number_input("最大预判偏移Y", min_value=0, value=20)
+    AIM_DELAY = st.number_input("瞄准延迟 (ms)", min_value=0, value=0)
+    TRIGGER_PRESS_DELAY = st.number_input("扳机延迟 (ms)", min_value=0, value=0)
 
 st.sidebar.markdown("---")
 st.sidebar.markdown("🏃 **移动靶测试参数**")
-target_vel_x_sec = st.sidebar.slider("目标移速 X (像素/秒)", -300.0, 300.0, -60.0, step=10.0)
-target_vel_y_sec = st.sidebar.slider("目标移速 Y (像素/秒)", -300.0, 300.0, -10.0, step=10.0)
+target_vel_x_sec = st.sidebar.number_input("目标移速 X (像素/秒)", value=-60.0, step=10.0)
+target_vel_y_sec = st.sidebar.number_input("目标移速 Y (像素/秒)", value=-10.0, step=10.0)
 detect_w = 400.0 
 
 # ==========================================
-# 3. 轨迹数据生成引擎 (修复了开火数组逻辑)
+# 3. 轨迹数据生成引擎 
 # ==========================================
 def generate_simulation_data():
     dt_ms = 1000.0 / target_fps
@@ -180,7 +180,6 @@ def generate_simulation_data():
     tx_start, ty_start = 150.0, 80.0
     kx.reset(tx_start); ky.reset(ty_start)
     
-    # 将 fire_x, fire_y 替换为按帧记录的布尔值 is_fire
     data = {"xhair_x":[], "xhair_y":[], "target_x":[], "target_y":[], "pred_x":[], "pred_y":[], "is_fire":[]}
     
     for i in range(total_frames):
@@ -234,7 +233,7 @@ def generate_simulation_data():
                 for _ in range(3):
                     nv += smooth_noise(current_time_sec * 1000.0 * freq) * amp
                     amp *= 0.5; freq *= 2.0
-                fd = min(1.0, (dist - FINAL_RANGE)/60.0)
+                fd = min(1.0, (dist - FINAL_RANGE)/60.0) if FINAL_RANGE >= 0 else 1.0
                 off = nv * MAX_CURVE_PIXELS * min(1.0, len_d/12.0) * fd
                 dx += prx * off; dy += pry * off
         
@@ -242,7 +241,6 @@ def generate_simulation_data():
         cy += dy * CAMERA_SENS * sens_multiplier
         data["xhair_x"].append(cx); data["xhair_y"].append(cy)
         
-        # 修正的开火判定：逐帧记录布尔值
         is_firing = False
         if TRIGGER_ENABLED:
             tr = TRIGGER_PERCENT * 0.01
@@ -292,7 +290,6 @@ def draw_frame(frame_idx):
         ax.add_patch(patches.Rectangle((lcx-DEADBAND, lcy-DEADBAND_Y), DEADBAND*2, DEADBAND_Y*2, 
                                      ec='#50fa7b', fc='#50fa7b33', label="当前死区"))
                                      
-    # 修正：直接通过本帧及之前帧的 is_fire 布尔值过滤提取开火点，100% 杜绝长度不匹配报错
     fx = [cx[j] for j in range(frame_idx) if sim_data["is_fire"][j]]
     fy = [cy[j] for j in range(frame_idx) if sim_data["is_fire"][j]]
     if fx: ax.scatter(fx, fy, color='#ff5555', marker='*', s=60, zorder=5, label="开火 Fired")
@@ -301,7 +298,9 @@ def draw_frame(frame_idx):
     ax.grid(color='#6272a4', ls=':', alpha=0.3)
     ax.legend(facecolor='#282a36', edgecolor='#6272a4', labelcolor='#f8f8f2', loc='upper left', bbox_to_anchor=(1.02, 1))
     
-    ax.set_xlim(-50, 250); ax.set_ylim(-20, 120)
+    # 动态适应极端飞出的画面，移除强制的坐标轴限制，让视角自动跟随轨迹
+    # ax.set_xlim(-50, 250); ax.set_ylim(-20, 120) 
+    
     plt.tight_layout()
     return fig
 
