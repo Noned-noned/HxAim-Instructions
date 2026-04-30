@@ -289,7 +289,7 @@ def draw_frame(frame_idx):
         
         ax.scatter(lcx, lcy, color='#50fa7b', marker='o', s=50, label="当前准星")
         ax.add_patch(patches.Rectangle((lcx-DEADBAND, lcy-DEADBAND_Y), DEADBAND*2, DEADBAND_Y*2, 
-                                     ec='#50fa7b', fc='rgba(80,250,123,0.2)', label="当前死区"))
+                                     ec='#50fa7b', fc='#50fa7b33', label="当前死区"))
                                      
     fx = [x for x in sim_data["fire_x"] if x in cx]
     fy = [y for y in sim_data["fire_y"] if y in cy]
