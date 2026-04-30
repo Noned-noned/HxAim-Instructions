@@ -93,12 +93,10 @@ def calc_dynamic_param(distance, p_min, p_max, p_factor, max_dist, reverse):
 # ==========================================
 st.sidebar.title("🎛️ HxAim 参数台")
 
-# --- 硬件与系统环境 ---
 with st.sidebar.expander("🖥️ 硬件与系统环境", expanded=True):
     target_fps = st.select_slider("游戏帧率 (FPS)", options=[30, 60, 90, 120, 144, 240, 360], value=60)
     sens_multiplier = st.slider("DPI/游戏内灵敏度倍率", 0.1, 5.0, 1.0, step=0.1)
 
-# --- 布尔类型 (Boolean) ---
 with st.sidebar.expander("🟢 布尔类型开关 (Boolean)", expanded=False):
     c1, c2 = st.columns(2)
     AIM_ENABLED = c1.checkbox("自瞄开关", True)
@@ -112,7 +110,6 @@ with st.sidebar.expander("🟢 布尔类型开关 (Boolean)", expanded=False):
     BOW_MODE = c1.checkbox("弓箭模式", False)
     PLAYBACK_PATTERN_ENABLED = c2.checkbox("回放弹道", False)
 
-# --- 小数类型 (Double) ---
 with st.sidebar.expander("🔵 小数类型参数 (Double)", expanded=False):
     st.markdown("**🎯 PID 参数矩阵**")
     pc1, pc2 = st.columns(2)
@@ -149,7 +146,6 @@ with st.sidebar.expander("🔵 小数类型参数 (Double)", expanded=False):
     KF_Q_VEL_X = st.number_input("KF_Q_VEL_X", value=8.0)
     CAMERA_SENS = st.slider("镜头补偿 Sens", 0.1, 5.0, 1.0)
 
-# --- 整数类型 (Integer) ---
 with st.sidebar.expander("🟠 整数类型参数 (Integer)", expanded=False):
     TARGET_RANGE = st.slider("瞄准范围", 10, 500, 200)
     X_OFFSET = st.number_input("X偏移", -100, 100, 0)
@@ -161,21 +157,19 @@ with st.sidebar.expander("🟠 整数类型参数 (Integer)", expanded=False):
     AIM_DELAY = st.number_input("瞄准延迟 (ms)", 0, 500, 0)
     TRIGGER_PRESS_DELAY = st.number_input("扳机延迟 (ms)", 0, 500, 0)
 
-# --- 环境模拟 (辅助) ---
 st.sidebar.markdown("---")
 st.sidebar.markdown("🏃 **移动靶测试参数**")
-# 速度解耦为 像素/秒，保证不同FPS下移速一致
 target_vel_x_sec = st.sidebar.slider("目标移速 X (像素/秒)", -300.0, 300.0, -60.0, step=10.0)
 target_vel_y_sec = st.sidebar.slider("目标移速 Y (像素/秒)", -300.0, 300.0, -10.0, step=10.0)
 detect_w = 400.0 
 
 # ==========================================
-# 3. 轨迹数据生成引擎 (引入时间步长解耦)
+# 3. 轨迹数据生成引擎 (修复了开火数组逻辑)
 # ==========================================
 def generate_simulation_data():
-    dt_ms = 1000.0 / target_fps  # 动态计算每帧时长
+    dt_ms = 1000.0 / target_fps
     dt_sec = dt_ms / 1000.0
-    sim_duration_sec = 2.0       # 统一模拟 2 秒钟
+    sim_duration_sec = 2.0
     total_frames = int(sim_duration_sec * target_fps)
     
     px, py = IncrementalPID(), IncrementalPID()
@@ -186,11 +180,11 @@ def generate_simulation_data():
     tx_start, ty_start = 150.0, 80.0
     kx.reset(tx_start); ky.reset(ty_start)
     
-    data = {"xhair_x":[], "xhair_y":[], "target_x":[], "target_y":[], "pred_x":[], "pred_y":[], "fire_x":[], "fire_y":[]}
+    # 将 fire_x, fire_y 替换为按帧记录的布尔值 is_fire
+    data = {"xhair_x":[], "xhair_y":[], "target_x":[], "target_y":[], "pred_x":[], "pred_y":[], "is_fire":[]}
     
     for i in range(total_frames):
         current_time_sec = i * dt_sec
-        # 目标位移随绝对时间增加
         rtx = tx_start + target_vel_x_sec * current_time_sec
         rty = ty_start + target_vel_y_sec * current_time_sec
         etx, ety = rtx + X_OFFSET, rty
@@ -238,22 +232,24 @@ def generate_simulation_data():
                 prx, pry = -dy/len_d, dx/len_d
                 nv = 0.0; amp = 1.0; freq = CURVE_FREQUENCY
                 for _ in range(3):
-                    # 频率受真实时间戳控制
                     nv += smooth_noise(current_time_sec * 1000.0 * freq) * amp
                     amp *= 0.5; freq *= 2.0
                 fd = min(1.0, (dist - FINAL_RANGE)/60.0)
                 off = nv * MAX_CURVE_PIXELS * min(1.0, len_d/12.0) * fd
                 dx += prx * off; dy += pry * off
         
-        # 应用 DPI 倍率和镜头参数
         cx += dx * CAMERA_SENS * sens_multiplier
         cy += dy * CAMERA_SENS * sens_multiplier
         data["xhair_x"].append(cx); data["xhair_y"].append(cy)
         
+        # 修正的开火判定：逐帧记录布尔值
+        is_firing = False
         if TRIGGER_ENABLED:
             tr = TRIGGER_PERCENT * 0.01
             if (rtx - 30*tr <= cx <= rtx + 30*tr) and (rty - 50*tr <= cy <= rty + 50*tr):
-                data["fire_x"].append(cx); data["fire_y"].append(cy)
+                is_firing = True
+        data["is_fire"].append(is_firing)
+        
     return data, total_frames, sim_duration_sec
 
 sim_data, t_frames, duration_sec = generate_simulation_data()
@@ -293,12 +289,12 @@ def draw_frame(frame_idx):
             ax.scatter(lpx, lpy, color='#f1fa8c', marker='X', s=80, label="预测瞄准点", zorder=4)
         
         ax.scatter(lcx, lcy, color='#50fa7b', marker='o', s=50, label="当前准星")
-        # 修正的透明度颜色表示：使用 #50fa7b33
         ax.add_patch(patches.Rectangle((lcx-DEADBAND, lcy-DEADBAND_Y), DEADBAND*2, DEADBAND_Y*2, 
                                      ec='#50fa7b', fc='#50fa7b33', label="当前死区"))
                                      
-    fx = [x for x in sim_data["fire_x"] if x in cx]
-    fy = [y for y in sim_data["fire_y"] if y in cy]
+    # 修正：直接通过本帧及之前帧的 is_fire 布尔值过滤提取开火点，100% 杜绝长度不匹配报错
+    fx = [cx[j] for j in range(frame_idx) if sim_data["is_fire"][j]]
+    fy = [cy[j] for j in range(frame_idx) if sim_data["is_fire"][j]]
     if fx: ax.scatter(fx, fy, color='#ff5555', marker='*', s=60, zorder=5, label="开火 Fired")
 
     ax.set_title(f"逐帧计算演示 (当前帧: {frame_idx}/{t_frames}) | {target_fps} FPS | 灵敏度: {sens_multiplier}x", color='#f8f8f2', fontsize=14)
@@ -311,15 +307,12 @@ def draw_frame(frame_idx):
 
 # --- 动画自适应播放控制 ---
 if play_btn:
-    # 动态计算跳帧率，保证不管FPS多高，画图过程都在大概3秒内播完
     step = max(1, t_frames // 40)
     for i in range(1, t_frames + 1, step): 
         fig = draw_frame(i)
         plot_placeholder.pyplot(fig)
         plt.close(fig)
         time.sleep(0.01)
-    
-    # 确保最后停在完整数据的最后一帧
     if i != t_frames:
         fig = draw_frame(t_frames)
         plot_placeholder.pyplot(fig)
