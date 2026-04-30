@@ -86,16 +86,16 @@ def calc_dynamic_param(distance, p_min, p_max, p_factor, max_dist, reverse):
     base_val = norm_dist if reverse else (1.0 - norm_dist)
     factor_val = base_val ** p_factor if p_factor not in [1.0, 2.0] else (base_val*base_val if p_factor==2.0 else base_val)
     val = p_min + (p_max - p_min) * factor_val
-    return max(p_min, min(p_max, val))
+    return val
 
 # ==========================================
-# 2. UI 面板 (彻底解除上限)
+# 2. UI 面板 (无限制)
 # ==========================================
 st.sidebar.title("🎛️ HxAim 无限制控制台")
 
 with st.sidebar.expander("🖥️ 硬件与系统环境", expanded=True):
-    target_fps = st.select_slider("游戏帧率 (FPS)", options=[30, 60, 90, 120, 144, 240, 360, 500, 1000], value=240)
-    sens_multiplier = st.number_input("DPI/游戏内灵敏度倍率", min_value=0.01, value=1.0, step=0.1)
+    target_fps = st.select_slider("游戏帧率 (FPS)", options=[30, 60, 90, 120, 144, 240, 360, 500, 1000], value=60)
+    sens_multiplier = st.number_input("DPI/游戏内灵敏度倍率", value=1.0, step=0.1)
 
 with st.sidebar.expander("🟢 布尔类型开关 (Boolean)", expanded=False):
     c1, c2 = st.columns(2)
@@ -113,49 +113,57 @@ with st.sidebar.expander("🟢 布尔类型开关 (Boolean)", expanded=False):
 with st.sidebar.expander("🔵 小数类型参数 (Double)", expanded=False):
     st.markdown("**🎯 PID 参数矩阵**")
     pc1, pc2 = st.columns(2)
-    KPX_MIN = pc1.number_input("KPX_MIN (X阻尼-小)", min_value=0.0, value=0.05, step=0.01)
-    KPX_MAX = pc1.number_input("KPX_MAX (X阻尼-大)", min_value=0.0, value=0.15, step=0.01)
-    KIX_MIN = pc1.number_input("KIX_MIN (X动力-小)", min_value=0.0, value=0.005, step=0.001)
-    KIX_MAX = pc1.number_input("KIX_MAX (X动力-大)", min_value=0.0, value=0.020, step=0.001)
-    KDX_MIN = pc1.number_input("KDX_MIN", min_value=0.0, value=0.0, step=0.01)
-    KDX_MAX = pc1.number_input("KDX_MAX", min_value=0.0, value=0.0, step=0.01)
+    KPX_MIN = pc1.number_input("KPX_MIN (X阻尼-小)", value=0.05, step=0.01)
+    KPX_MAX = pc1.number_input("KPX_MAX (X阻尼-大)", value=0.15, step=0.01)
+    KIX_MIN = pc1.number_input("KIX_MIN (X动力-小)", value=0.005, step=0.001)
+    KIX_MAX = pc1.number_input("KIX_MAX (X动力-大)", value=0.020, step=0.001)
+    KDX_MIN = pc1.number_input("KDX_MIN", value=0.0, step=0.01)
+    KDX_MAX = pc1.number_input("KDX_MAX", value=0.0, step=0.01)
     
-    KPY_MIN = pc2.number_input("KPY_MIN (Y阻尼-小)", min_value=0.0, value=0.05, step=0.01)
-    KPY_MAX = pc2.number_input("KPY_MAX (Y阻尼-大)", min_value=0.0, value=0.15, step=0.01)
-    KIY_MIN = pc2.number_input("KIY_MIN (Y动力-小)", min_value=0.0, value=0.005, step=0.001)
-    KIY_MAX = pc2.number_input("KIY_MAX (Y动力-大)", min_value=0.0, value=0.020, step=0.001)
-    KDY_MIN = pc2.number_input("KDY_MIN", min_value=0.0, value=0.0, step=0.01)
-    KDY_MAX = pc2.number_input("KDY_MAX", min_value=0.0, value=0.0, step=0.01)
+    KPY_MIN = pc2.number_input("KPY_MIN (Y阻尼-小)", value=0.05, step=0.01)
+    KPY_MAX = pc2.number_input("KPY_MAX (Y阻尼-大)", value=0.15, step=0.01)
+    KIY_MIN = pc2.number_input("KIY_MIN (Y动力-小)", value=0.005, step=0.001)
+    KIY_MAX = pc2.number_input("KIY_MAX (Y动力-大)", value=0.020, step=0.001)
+    KDY_MIN = pc2.number_input("KDY_MIN", value=0.0, step=0.01)
+    KDY_MAX = pc2.number_input("KDY_MAX", value=0.0, step=0.01)
     
     st.markdown("---")
-    IXMAX = st.number_input("IXMAX (最大输出X)", min_value=0.0, value=50.0)
-    IYMAX = st.number_input("IYMAX (最大输出Y)", min_value=0.0, value=50.0)
+    IXMAX = st.number_input("IXMAX (最大输出X)", value=50.0)
+    IYMAX = st.number_input("IYMAX (最大输出Y)", value=50.0)
     c1, c2 = st.columns(2)
-    P_FACTOR = c1.number_input("P_FACTOR_X", min_value=0.01, value=1.0)
-    P_FACTOR_Y = c2.number_input("P_FACTOR_Y", min_value=0.01, value=1.0)
-    DEADBAND = c1.number_input("死区X (像素)", min_value=0.0, value=2.0)
-    DEADBAND_Y = c2.number_input("死区Y (像素)", min_value=0.0, value=2.0)
-    PREDICT_TIME_MS = c1.number_input("预测时间X (ms)", min_value=0.0, value=20.0)
-    PREDICT_TIME_MS_Y = c2.number_input("预测时间Y (ms)", min_value=0.0, value=10.0)
+    P_FACTOR = c1.number_input("P_FACTOR_X", value=1.0)
+    P_FACTOR_Y = c2.number_input("P_FACTOR_Y", value=1.0)
+    DEADBAND = c1.number_input("死区X (像素)", value=2.0)
+    DEADBAND_Y = c2.number_input("死区Y (像素)", value=2.0)
+    PREDICT_TIME_MS = c1.number_input("预测时间X (ms)", value=20.0)
+    PREDICT_TIME_MS_Y = c2.number_input("预测时间Y (ms)", value=10.0)
     
-    st.markdown("**🧬 拟人化与噪声**")
-    FINAL_RANGE = st.number_input("最终直线范围", min_value=0.0, value=25.0)
-    MAX_CURVE_PIXELS = st.number_input("最大曲线偏移", min_value=0.0, value=6.0)
-    CURVE_FREQUENCY = st.number_input("曲线抖动频率", min_value=0.0, value=0.003, format="%.4f")
-    KF_Q_POS_X = st.number_input("KF_Q_POS_X", value=0.001, format="%.4f")
-    KF_Q_VEL_X = st.number_input("KF_Q_VEL_X", value=8.0)
-    CAMERA_SENS = st.number_input("镜头补偿 Sens", min_value=0.01, value=1.0, step=0.1)
+    st.markdown("**🔮 卡尔曼预测噪声 (Kalman)**")
+    kc1, kc2 = st.columns(2)
+    KF_Q_POS_X = kc1.number_input("位置噪声X (Q_POS_X)", value=0.001, format="%.4f", step=0.001)
+    KF_Q_VEL_X = kc1.number_input("速度噪声X (Q_VEL_X)", value=8.0, step=0.1)
+    KF_R_OBS_X = kc1.number_input("观测噪声X (R_OBS_X)", value=2.0, step=0.1)
+    
+    KF_Q_POS_Y = kc2.number_input("位置噪声Y (Q_POS_Y)", value=0.001, format="%.4f", step=0.001)
+    KF_Q_VEL_Y = kc2.number_input("速度噪声Y (Q_VEL_Y)", value=8.0, step=0.1)
+    KF_R_OBS_Y = kc2.number_input("观测噪声Y (R_OBS_Y)", value=2.0, step=0.1)
+    
+    st.markdown("**🧬 拟人化与杂项**")
+    FINAL_RANGE = st.number_input("最终直线范围", value=25.0)
+    MAX_CURVE_PIXELS = st.number_input("最大曲线偏移", value=6.0)
+    CURVE_FREQUENCY = st.number_input("曲线抖动频率", value=0.003, format="%.4f", step=0.001)
+    CAMERA_SENS = st.number_input("镜头补偿 Sens", value=1.0, step=0.1)
 
 with st.sidebar.expander("🟠 整数类型参数 (Integer)", expanded=False):
-    TARGET_RANGE = st.number_input("瞄准范围", min_value=1, value=200)
+    TARGET_RANGE = st.number_input("瞄准范围", value=200)
     X_OFFSET = st.number_input("X偏移", value=0)
-    TRIGGER_PERCENT = st.number_input("触发比例 (%)", min_value=1, value=30)
-    PREDICT_ENABLE_DISTANCE_X = st.number_input("预判启动距X", min_value=0, value=150)
-    PREDICT_ENABLE_DISTANCE_Y = st.number_input("预判启动距Y", min_value=0, value=100)
-    PREDICT_MAX_OFFSET_X = st.number_input("最大预判偏移X", min_value=0, value=40)
-    PREDICT_MAX_OFFSET_Y = st.number_input("最大预判偏移Y", min_value=0, value=20)
-    AIM_DELAY = st.number_input("瞄准延迟 (ms)", min_value=0, value=0)
-    TRIGGER_PRESS_DELAY = st.number_input("扳机延迟 (ms)", min_value=0, value=0)
+    TRIGGER_PERCENT = st.number_input("触发比例 (%)", value=30)
+    PREDICT_ENABLE_DISTANCE_X = st.number_input("预判启动距X", value=150)
+    PREDICT_ENABLE_DISTANCE_Y = st.number_input("预判启动距Y", value=100)
+    PREDICT_MAX_OFFSET_X = st.number_input("最大预判偏移X", value=40)
+    PREDICT_MAX_OFFSET_Y = st.number_input("最大预判偏移Y", value=20)
+    AIM_DELAY = st.number_input("瞄准延迟 (ms)", value=0)
+    TRIGGER_PRESS_DELAY = st.number_input("扳机延迟 (ms)", value=0)
 
 st.sidebar.markdown("---")
 st.sidebar.markdown("🏃 **移动靶测试参数**")
@@ -174,7 +182,10 @@ def generate_simulation_data():
     
     px, py = IncrementalPID(), IncrementalPID()
     kx, ky = KalmanFilter1D(), KalmanFilter1D()
-    kx.set_noise(KF_Q_POS_X, KF_Q_VEL_X, 2.0)
+    
+    # 【重点修复】：应用全部 X 和 Y 的卡尔曼噪声参数
+    kx.set_noise(KF_Q_POS_X, KF_Q_VEL_X, KF_R_OBS_X)
+    ky.set_noise(KF_Q_POS_Y, KF_Q_VEL_Y, KF_R_OBS_Y)
     
     cx, cy = 0.0, 0.0
     tx_start, ty_start = 150.0, 80.0
@@ -297,9 +308,6 @@ def draw_frame(frame_idx):
     ax.set_title(f"逐帧计算演示 (当前帧: {frame_idx}/{t_frames}) | {target_fps} FPS | 灵敏度: {sens_multiplier}x", color='#f8f8f2', fontsize=14)
     ax.grid(color='#6272a4', ls=':', alpha=0.3)
     ax.legend(facecolor='#282a36', edgecolor='#6272a4', labelcolor='#f8f8f2', loc='upper left', bbox_to_anchor=(1.02, 1))
-    
-    # 动态适应极端飞出的画面，移除强制的坐标轴限制，让视角自动跟随轨迹
-    # ax.set_xlim(-50, 250); ax.set_ylim(-20, 120) 
     
     plt.tight_layout()
     return fig
