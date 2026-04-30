@@ -3,6 +3,25 @@ import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.patches as patches
 
+# ==========================================
+# 新增：解决云端 Matplotlib 中文乱码的魔法代码
+# ==========================================
+import matplotlib.font_manager as fm
+import os
+
+# 检查当前目录下是否有我们上传的字体文件
+font_file = "msyh.ttf"  # 如果你上传的文件名不一样，这里记得改
+if os.path.exists(font_file):
+    # 将字体强行加入 matplotlib 的字体库
+    fm.fontManager.addfont(font_file)
+    # 获取字体的真实内部名称并设为全局默认字体
+    font_prop = fm.FontProperties(fname=font_file)
+    plt.rcParams['font.family'] = font_prop.get_name()
+    plt.rcParams['axes.unicode_minus'] = False # 解决负号 '-' 显示为方块的问题
+else:
+    st.warning(f"未找到字体文件 {font_file}，图表中的中文可能会显示为方框。")
+# =================
+
 st.set_page_config(page_title="HxAim 终极参数模拟中心", layout="wide")
 
 # ==========================================
