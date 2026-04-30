@@ -13,25 +13,18 @@ st.set_page_config(page_title="HxAim 终极动画模拟器", layout="wide")
 # ==========================================
 @st.cache_resource
 def load_font():
-    # 自动尝试加载你可能上传的文件名
     font_candidates = ["msyh.ttf", "msyh.ttc", "simhei.ttf", "SimHei.ttf"]
-    font_loaded = False
-    
     for font_path in font_candidates:
         if os.path.exists(font_path):
             fm.fontManager.addfont(font_path)
             plt.rcParams['font.family'] = fm.FontProperties(fname=font_path).get_name()
-            plt.rcParams['axes.unicode_minus'] = False # 修复负号显示
-            font_loaded = True
+            plt.rcParams['axes.unicode_minus'] = False 
             break
-            
-    if not font_loaded:
-        st.warning("⚠️ 未检测到字体文件，请确认你上传的字体文件名是 msyh.ttf 或 simhei.ttf。")
 
 load_font()
 
 # ==========================================
-# 1. 核心算法复刻 (对齐 C++ 逻辑)
+# 1. 核心算法复刻
 # ==========================================
 def smooth_noise(x):
     xi = int(np.floor(x))
@@ -96,9 +89,14 @@ def calc_dynamic_param(distance, p_min, p_max, p_factor, max_dist, reverse):
     return max(p_min, min(p_max, val))
 
 # ==========================================
-# 2. UI 面板 (严格对齐 C++ Config)
+# 2. UI 面板
 # ==========================================
 st.sidebar.title("🎛️ HxAim 参数台")
+
+# --- 硬件与系统环境 ---
+with st.sidebar.expander("🖥️ 硬件与系统环境", expanded=True):
+    target_fps = st.select_slider("游戏帧率 (FPS)", options=[30, 60, 90, 120, 144, 240, 360], value=60)
+    sens_multiplier = st.slider("DPI/游戏内灵敏度倍率", 0.1, 5.0, 1.0, step=0.1)
 
 # --- 布尔类型 (Boolean) ---
 with st.sidebar.expander("🟢 布尔类型开关 (Boolean)", expanded=False):
@@ -115,17 +113,16 @@ with st.sidebar.expander("🟢 布尔类型开关 (Boolean)", expanded=False):
     PLAYBACK_PATTERN_ENABLED = c2.checkbox("回放弹道", False)
 
 # --- 小数类型 (Double) ---
-with st.sidebar.expander("🔵 小数类型参数 (Double)", expanded=True):
+with st.sidebar.expander("🔵 小数类型参数 (Double)", expanded=False):
     st.markdown("**🎯 PID 参数矩阵**")
     pc1, pc2 = st.columns(2)
-    # PID X
     KPX_MIN = pc1.number_input("KPX_MIN (X阻尼-小)", 0.0, 1.0, 0.05, 0.01)
     KPX_MAX = pc1.number_input("KPX_MAX (X阻尼-大)", 0.0, 1.0, 0.15, 0.01)
     KIX_MIN = pc1.number_input("KIX_MIN (X动力-小)", 0.0, 0.1, 0.005, 0.001)
     KIX_MAX = pc1.number_input("KIX_MAX (X动力-大)", 0.0, 0.1, 0.020, 0.001)
     KDX_MIN = pc1.number_input("KDX_MIN", 0.0, 0.5, 0.0, 0.01)
     KDX_MAX = pc1.number_input("KDX_MAX", 0.0, 0.5, 0.0, 0.01)
-    # PID Y
+    
     KPY_MIN = pc2.number_input("KPY_MIN (Y阻尼-小)", 0.0, 1.0, 0.05, 0.01)
     KPY_MAX = pc2.number_input("KPY_MAX (Y阻尼-大)", 0.0, 1.0, 0.15, 0.01)
     KIY_MIN = pc2.number_input("KIY_MIN (Y动力-小)", 0.0, 0.1, 0.005, 0.001)
@@ -166,17 +163,20 @@ with st.sidebar.expander("🟠 整数类型参数 (Integer)", expanded=False):
 
 # --- 环境模拟 (辅助) ---
 st.sidebar.markdown("---")
-st.sidebar.markdown("🏃 **移动靶环境模拟**")
-target_vel_x = st.sidebar.slider("目标移速 X", -20.0, 20.0, -5.0)
-target_vel_y = st.sidebar.slider("目标移速 Y", -20.0, 20.0, -1.0)
-detect_w = 400.0 # 假定识别框宽
+st.sidebar.markdown("🏃 **移动靶测试参数**")
+# 速度解耦为 像素/秒，保证不同FPS下移速一致
+target_vel_x_sec = st.sidebar.slider("目标移速 X (像素/秒)", -300.0, 300.0, -60.0, step=10.0)
+target_vel_y_sec = st.sidebar.slider("目标移速 Y (像素/秒)", -300.0, 300.0, -10.0, step=10.0)
+detect_w = 400.0 
 
 # ==========================================
-# 3. 轨迹数据生成引擎
+# 3. 轨迹数据生成引擎 (引入时间步长解耦)
 # ==========================================
 def generate_simulation_data():
-    dt_ms = 16.0; dt_sec = dt_ms / 1000.0
-    total_frames = 120
+    dt_ms = 1000.0 / target_fps  # 动态计算每帧时长
+    dt_sec = dt_ms / 1000.0
+    sim_duration_sec = 2.0       # 统一模拟 2 秒钟
+    total_frames = int(sim_duration_sec * target_fps)
     
     px, py = IncrementalPID(), IncrementalPID()
     kx, ky = KalmanFilter1D(), KalmanFilter1D()
@@ -189,8 +189,10 @@ def generate_simulation_data():
     data = {"xhair_x":[], "xhair_y":[], "target_x":[], "target_y":[], "pred_x":[], "pred_y":[], "fire_x":[], "fire_y":[]}
     
     for i in range(total_frames):
-        rtx = tx_start + target_vel_x * i
-        rty = ty_start + target_vel_y * i
+        current_time_sec = i * dt_sec
+        # 目标位移随绝对时间增加
+        rtx = tx_start + target_vel_x_sec * current_time_sec
+        rty = ty_start + target_vel_y_sec * current_time_sec
         etx, ety = rtx + X_OFFSET, rty
         data["target_x"].append(rtx); data["target_y"].append(rty)
         
@@ -236,27 +238,30 @@ def generate_simulation_data():
                 prx, pry = -dy/len_d, dx/len_d
                 nv = 0.0; amp = 1.0; freq = CURVE_FREQUENCY
                 for _ in range(3):
-                    nv += smooth_noise(i * dt_ms * freq) * amp
+                    # 频率受真实时间戳控制
+                    nv += smooth_noise(current_time_sec * 1000.0 * freq) * amp
                     amp *= 0.5; freq *= 2.0
                 fd = min(1.0, (dist - FINAL_RANGE)/60.0)
                 off = nv * MAX_CURVE_PIXELS * min(1.0, len_d/12.0) * fd
                 dx += prx * off; dy += pry * off
-                
-        cx += dx * CAMERA_SENS; cy += dy * CAMERA_SENS
+        
+        # 应用 DPI 倍率和镜头参数
+        cx += dx * CAMERA_SENS * sens_multiplier
+        cy += dy * CAMERA_SENS * sens_multiplier
         data["xhair_x"].append(cx); data["xhair_y"].append(cy)
         
         if TRIGGER_ENABLED:
             tr = TRIGGER_PERCENT * 0.01
             if (rtx - 30*tr <= cx <= rtx + 30*tr) and (rty - 50*tr <= cy <= rty + 50*tr):
                 data["fire_x"].append(cx); data["fire_y"].append(cy)
-    return data
+    return data, total_frames, sim_duration_sec
 
-sim_data = generate_simulation_data()
+sim_data, t_frames, duration_sec = generate_simulation_data()
 
 # ==========================================
 # 4. 图表动画渲染引擎
 # ==========================================
-st.title("🎬 动态弹道模拟中心")
+st.title(f"🎬 动态弹道模拟中心 (模拟时长 {duration_sec}秒 | {t_frames}帧)")
 c_play, c_info = st.columns([1, 4])
 play_btn = c_play.button("▶️ 播放动画", use_container_width=True)
 
@@ -288,6 +293,7 @@ def draw_frame(frame_idx):
             ax.scatter(lpx, lpy, color='#f1fa8c', marker='X', s=80, label="预测瞄准点", zorder=4)
         
         ax.scatter(lcx, lcy, color='#50fa7b', marker='o', s=50, label="当前准星")
+        # 修正的透明度颜色表示：使用 #50fa7b33
         ax.add_patch(patches.Rectangle((lcx-DEADBAND, lcy-DEADBAND_Y), DEADBAND*2, DEADBAND_Y*2, 
                                      ec='#50fa7b', fc='#50fa7b33', label="当前死区"))
                                      
@@ -295,7 +301,7 @@ def draw_frame(frame_idx):
     fy = [y for y in sim_data["fire_y"] if y in cy]
     if fx: ax.scatter(fx, fy, color='#ff5555', marker='*', s=60, zorder=5, label="开火 Fired")
 
-    ax.set_title(f"逐帧计算演示 (当前帧: {frame_idx}/120) | 参数解算中...", color='#f8f8f2', fontsize=14)
+    ax.set_title(f"逐帧计算演示 (当前帧: {frame_idx}/{t_frames}) | {target_fps} FPS | 灵敏度: {sens_multiplier}x", color='#f8f8f2', fontsize=14)
     ax.grid(color='#6272a4', ls=':', alpha=0.3)
     ax.legend(facecolor='#282a36', edgecolor='#6272a4', labelcolor='#f8f8f2', loc='upper left', bbox_to_anchor=(1.02, 1))
     
@@ -303,17 +309,22 @@ def draw_frame(frame_idx):
     plt.tight_layout()
     return fig
 
-# --- 动画播放控制 ---
+# --- 动画自适应播放控制 ---
 if play_btn:
-    for i in range(1, 121, 3): 
+    # 动态计算跳帧率，保证不管FPS多高，画图过程都在大概3秒内播完
+    step = max(1, t_frames // 40)
+    for i in range(1, t_frames + 1, step): 
         fig = draw_frame(i)
         plot_placeholder.pyplot(fig)
         plt.close(fig)
         time.sleep(0.01)
-    fig = draw_frame(120)
-    plot_placeholder.pyplot(fig)
-    plt.close(fig)
+    
+    # 确保最后停在完整数据的最后一帧
+    if i != t_frames:
+        fig = draw_frame(t_frames)
+        plot_placeholder.pyplot(fig)
+        plt.close(fig)
 else:
-    fig = draw_frame(120)
+    fig = draw_frame(t_frames)
     plot_placeholder.pyplot(fig)
     plt.close(fig)
